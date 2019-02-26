@@ -15,13 +15,14 @@ function get_html() {
 		<link rel="stylesheet" href="lib/codemirror/lib/codemirror.css" />
 		<script src="lib/codemirror/mode/sql/sql.js"></script>
 		<link rel="stylesheet" href="lib/fontawesome/css/all.min.css" />
+		<script src="js/page.js"></script>
 		<script src="js/script.js"></script>
 		<link rel="stylesheet" href="css/style.css" />
 	</head>
 	<body>
 		<div id="tabs">
 			'.get_tab().'
-			<div onclick="tab_new();" id="new_tab">&nbsp;+&nbsp;</div>
+			<div onclick="Page.new();" id="new_tab">&nbsp;+&nbsp;</div>
 		</div>
 		<div id="pages">
 			'.get_page().'
@@ -55,7 +56,7 @@ function get_tab($nb = 0, $focus = true) {
 	} else {
 		$title = c()->control()?:'welcome';
 	}
-	return '<div onclick="focus_tab(this);" id="tab_'.$nb.'" class="tab'.($focus?' selected':'').'" data-id="'.$nb.'">'.$title.'</div>';
+	return '<div onclick="Page.focus(this);" id="tab_'.$nb.'" class="tab'.($focus?' selected':'').'" data-id="'.$nb.'">'.$title.'</div>';
 }
 
 function get_page($nb = 0, $focus = true) {
@@ -64,7 +65,7 @@ function get_page($nb = 0, $focus = true) {
 					<div class="breadcrumb">
 						<div class="breadcrumb_icons" onclick="back_server();"><i class="fas fa-home"></i></div>
 						<div class="breadcrumb_icons" onclick="logout();"><i class="fas fa-sign-out-alt"></i></div>
-						<div class="breadcrumb_icons" onclick="load_content();"><i class="fas fa-sync-alt"></i></div>
+						<div class="breadcrumb_icons" onclick="Page.current().load_content();"><i class="fas fa-sync-alt"></i></div>
 						<div class="fuzzy breadcrumb_server"><input placeholder="Choisir un serveur"'.(c()->server() !== null?' value="'.p(c()->server_name()).'"':'').'/></div>
 						<div class="fuzzy breadcrumb_database"><input placeholder="Choisir une base de données" '.(c()->server() !== null?'':'disabled').''.(c()->database()?' value="'.p(c()->database()).'"':'').'/></div>
 						<div class="fuzzy breadcrumb_table"><input placeholder="Choisir une table" '.(c()->server() !== null && c()->database()?'':'disabled').''.(c()->table()?' value="'.p(c()->table()).'"':'').'/></div>
@@ -84,39 +85,39 @@ function get_controls() {
 	if(c()->server() !== null) {
 		if(c()->database()) {
 			if(c()->table()) {
-				return '<div onclick="load_content({add: {control: \'display\'}});">Afficher</div>
-						<div onclick="load_content({add: {control: \'structure\'}});">Structure</div>
-						<div onclick="load_content({add: {control: \'sql\'}});">SQL</div>
-						<div onclick="load_content({add: {control: \'search\'}});">Rechercher</div>
-						<div onclick="load_content({add: {control: \'insert\'}});">Insérer</div>
-						<div onclick="load_content({add: {control: \'export\'}});">Export</div>
-						<div onclick="load_content({add: {control: \'import\'}});">Import</div>
-						<div onclick="load_content({add: {control: \'privileges\'}});">Privilèges</div>
-						<div onclick="load_content({add: {control: \'operations\'}});">Opérations</div>
-						<div onclick="load_content({add: {control: \'déclencheurs\'}});">Déclencheurs</div>';
+				return '<div onclick="Page.current().context_add({control: \'display\'});Page.current().load_content();">Afficher</div>
+						<div onclick="Page.current().context_add({control: \'structure\'});Page.current().load_content();">Structure</div>
+						<div onclick="Page.current().context_add({control: \'sql\'});Page.current().load_content();">SQL</div>
+						<div onclick="Page.current().context_add({control: \'search\'});Page.current().load_content();">Rechercher</div>
+						<div onclick="Page.current().context_add({control: \'insert\'});Page.current().load_content();">Insérer</div>
+						<div onclick="Page.current().context_add({control: \'export\'});Page.current().load_content();">Export</div>
+						<div onclick="Page.current().context_add({control: \'import\'});Page.current().load_content();">Import</div>
+						<div onclick="Page.current().context_add({control: \'privileges\'});Page.current().load_content();">Privilèges</div>
+						<div onclick="Page.current().context_add({control: \'operations\'});Page.current().load_content();">Opérations</div>
+						<div onclick="Page.current().context_add({control: \'déclencheurs\'});Page.current().load_content();">Déclencheurs</div>';
 			} else {
-				return '<div onclick="load_content({add: {control: \'structure\'}});">Structure</div>
-						<div onclick="load_content({add: {control: \'sql\'}});">SQL</div>
-						<div onclick="load_content({add: {control: \'export\'}});">Export</div>
-						<div onclick="load_content({add: {control: \'import\'}});">Import</div>
-						<div onclick="load_content({add: {control: \'privileges\'}});">Privilèges</div>
-						<div onclick="load_content({add: {control: \'operations\'}});">Opérations</div>
-						<div onclick="load_content({add: {control: \'suivi\'}});">Suivi</div>
-						<div onclick="load_content({add: {control: \'déclencheurs\'}});">Déclencheurs</div>';
+				return '<div onclick="Page.current().context_add({control: \'structure\'});Page.current().load_content();">Structure</div>
+						<div onclick="Page.current().context_add({control: \'sql\'});Page.current().load_content();">SQL</div>
+						<div onclick="Page.current().context_add({control: \'export\'});Page.current().load_content();">Export</div>
+						<div onclick="Page.current().context_add({control: \'import\'});Page.current().load_content();">Import</div>
+						<div onclick="Page.current().context_add({control: \'privileges\'});Page.current().load_content();">Privilèges</div>
+						<div onclick="Page.current().context_add({control: \'operations\'});Page.current().load_content();">Opérations</div>
+						<div onclick="Page.current().context_add({control: \'suivi\'});Page.current().load_content();">Suivi</div>
+						<div onclick="Page.current().context_add({control: \'déclencheurs\'});Page.current().load_content();">Déclencheurs</div>';
 			}
 		} else {
-			return '<div onclick="load_content({add: {control: \'welcome\'}});">Accueil</div>
-						<div onclick="load_content({add: {control: \'structure\'}});">Base de données</div>
-						<div onclick="load_content({add: {control: \'sql\'}});">SQL</div>
-						<div onclick="load_content({add: {control: \'status\'}});">État</div>
-						<div onclick="load_content({add: {control: \'users\'}});">Utilisateurs</div>
-						<div onclick="load_content({add: {control: \'export\'}});">Export</div>
-						<div onclick="load_content({add: {control: \'import\'}});">Import</div>';
+			return '<div onclick="Page.current().context_add({control: \'welcome\'});Page.current().load_content();">Accueil</div>
+						<div onclick="Page.current().context_add({control: \'structure\'});Page.current().load_content();">Base de données</div>
+						<div onclick="Page.current().context_add({control: \'sql\'});Page.current().load_content();">SQL</div>
+						<div onclick="Page.current().context_add({control: \'status\'});Page.current().load_content();">État</div>
+						<div onclick="Page.current().context_add({control: \'users\'});Page.current().load_content();">Utilisateurs</div>
+						<div onclick="Page.current().context_add({control: \'export\'});Page.current().load_content();">Export</div>
+						<div onclick="Page.current().context_add({control: \'import\'});Page.current().load_content();">Import</div>';
 		}
 	} else {
-		return '<div onclick="load_content({add: {control: \'welcome\'}});">Accueil</div>
-						<div onclick="load_content({add: {control: \'tuto\'}});">Tutoriels</div>
-						<div onclick="load_content({add: {control: \'settings\'}});">Paramètres</div>';
+		return '<div onclick="Page.current().context_add({control: \'welcome\'});Page.current().load_content();">Accueil</div>
+						<div onclick="Page.current().context_add({control: \'tuto\'});Page.current().load_content();">Tutoriels</div>
+						<div onclick="Page.current().context_add({control: \'settings\'});Page.current().load_content();">Paramètres</div>';
 
 	}
 }
@@ -283,7 +284,7 @@ function get_content_table() {
 
 	switch(c()->control()) {
 		case 'display':
-			$return .= get_data_table_from_query();
+			$return .= get_content_sql(true);
 			break;
 		case 'sql':
 			return get_content_sql();
@@ -433,17 +434,35 @@ function get_content_table() {
 }
 
 
-function get_content_sql() {
+function get_content_sql($default_query = false) {
 	$return = '';
 
+	$query = $default_query ? '' : c()->detail['sql_query'] ?? '';
+	$show_data = $default_query || $query != '';
+
+	$keys = [];
+	if($default_query) {
+		$keys = get_default_keys();
+	}
+
+	if($query == '') {
+		$query = get_default_query();
+	}
+
 	$return .= '<form class="form" onsubmit="sql_execute(this); return false;">
-						<textarea class="highlight" name="sql_query">'.c()->detail['sql_query'].'</textarea>
+						<textarea class="highlight'.($show_data ? ' readonly' : '').'" name="sql_query">'.$query.'</textarea>
 						<div>
-							<button type="submit" class="btn" onclick="sql_empty(this.form); return false;">Vider</button>
-							<button type="submit" class="btn" onclick="sql_format(this.form); return false;">Formatter</button>
-							<button type="submit" class="btn">Exécuter</button>
+							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_empty(this.form); return false;">Vider</button>
+							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_format(this.form); return false;">Formatter</button>
+							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'">Exécuter</button>';
+	if($show_data) {
+		$return .= '
+							<button class="btn'.(!$show_data ? ' hidden' : '').'" onclick="edit_query(this); return false;">Éditer la requête</button>'; //TODO Le css du bouton d'avant est cassé car il utilise la propriété :not(:last-child)
+	}
+	$return .= '
 						</div>
 					</form>';
+
 
 	if(!c()->ajax()) {
 		$return .= '
@@ -452,7 +471,9 @@ function get_content_sql() {
 					</script>';
 	}
 
-	$return .= get_data_table_from_query(c()->detail['sql_query']);
+	if($show_data) {
+		$return .= get_data_table_from_query($query, $keys);
+	}
 
 	return $return;
 }
@@ -477,23 +498,86 @@ function get_login_form() {
 					</form>';
 }
 
-function get_data_table_from_query($query = null) {
-	$results = get_data_from_query($query);
+function get_data_table_from_query($query, $keys = []) {
+	$table = get_data_from_query($query);
+
+	$controls = '
+					<div class="viewer_controls">';
+	if($table['max_page'] > 1) {
+		if($table['page'] > 2) {
+			$controls .= '
+						<div class="clickable" onclick="tv_page(1)"><i class="fas fa-angle-double-left"></i></div>';
+		}
+		if($table['page'] > 1) {
+			$controls .= '
+						<div class="clickable" onclick="tv_page('.p($table['page']-1).')"><i class="fas fa-angle-left"></i></div>';
+		}
+		$controls .= '
+						<select onchange="tv_page(select_val(this))">';
+		foreach(get_pages_around($table['page'], $table['max_page']) as $page) {
+			$controls .= '
+							<option value="'.p($page).'"'.($page == $table['page'] ? ' selected' : '' ).'>'.p($page).'</option>';
+		}
+		$controls .= '
+						</select>';
+		if($table['page'] < $table['max_page']-1) {
+			$controls .= '
+						<div class="clickable" onclick="tv_page('.p($table['page']+1).')"><i class="fas fa-angle-right"></i></div>';
+		}
+		if($table['page'] < $table['max_page']) {
+			$controls .= '
+						<div class="clickable" onclick="tv_page('.p($table['max_page']).')"><i class="fas fa-angle-double-right"></i></div>';
+		}
+		$controls .= '
+						<div>|</div>';
+	}
+	$controls .= '
+						<div>Nombre de lignes :</div>
+						<select onchange="tv_number_rows(select_val(this));">
+							<option value="25" '.($table['limit'] == 25 ? ' selected' : '').'>25</option>
+							<option value="50" '.($table['limit'] == 50 ? ' selected' : '').'>50</option>
+							<option value="100" '.($table['limit'] == 100 ? ' selected' : '').'>100</option>
+							<option value="250" '.($table['limit'] == 250 ? ' selected' : '').'>250</option>
+							<option value="500" '.($table['limit'] == 500 ? ' selected' : '').'>500</option>
+						</select>
+						<!--<div>|</div>
+						<div>Trier par clé :</div>
+						<select>TODO</select>-->
+					</div>';
+
+	$return .= $controls;
 	$return .= '
 					<table class="table">
 						<thead>
 							<tr>';
-	foreach($results['legend'] as $legend) {
+	if(count($keys)) {
 		$return .= '
-								<td>'.p($legend).'</td>';
+								<th>Action</th>';
+	}
+	foreach($table['legend'] as $legend) {
+		$return .= '
+								<th>'.p($legend).'</th>';
 	}
 	$return .= '
 							</tr>
 						</thead>
 						<tbody>';
-	foreach($results['rows'] as $row) {
+	foreach($table['rows'] as $row) {
 		$return .= '
 							<tr>';
+		if(count($keys)) {
+			$key_code = [];
+			foreach($keys as $key) {
+				$key_code[$key] = $row[$key];
+			}
+			$key_code = json_encode($key_code);
+			$return .= '
+								<td>
+									<div class="action_edit" onclick="tv_edit('.p($key_code).')"><i class="fas fa-pen"></i></div>
+									<div class="action_copy" onclick="tv_copy('.p($key_code).')"><i class="fas fa-copy"></i></div>
+									<div class="action_delete" onclick="tv_delete('.p($key_code).')"><i class="fas fa-minus-circle"></i></div>
+								</td>';
+		}
 		foreach($row as $data) {
 			$return .= '
 								<td>'.p($data).'</td>';
@@ -504,5 +588,6 @@ function get_data_table_from_query($query = null) {
 	$return .= '
 						</tbody>
 					</table>';
+	$return .= $controls;
 	return $return;
 }

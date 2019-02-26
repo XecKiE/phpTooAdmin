@@ -270,6 +270,15 @@ body, input {
 
 
 
+.hidden {
+	display: none !important;
+}
+
+
+
+
+
+
 
 
 
@@ -325,6 +334,11 @@ body, input {
 
 
 
+
+
+
+
+
 .content .table {
 	background: #3E3D32;
 	width: 100%;
@@ -355,6 +369,28 @@ body, input {
 	color: #9b59b6;
 }
 
+
+
+
+
+.action_edit {
+	display: inline-block;
+	margin: 0px 5px;
+	cursor: pointer;
+	color: #f1c40f;
+}
+.action_copy {
+	display: inline-block;
+	margin: 0px 5px;
+	cursor: pointer;
+	color: #3498db;
+}
+.action_delete {
+	display: inline-block;
+	margin: 0px 5px;
+	cursor: pointer;
+	color: #e74c3c;
+}
 
 
 
@@ -470,7 +506,16 @@ body, input {
 
 
 
-
+.viewer_controls {
+	display: flex;
+	justify-content: center;
+}
+.viewer_controls > * {
+	margin: 5px;
+}
+.clickable {
+	cursor: pointer;
+}
 
 
 
@@ -487,7 +532,7 @@ body, input {
 .form > div:not(.CodeMirror) > * {
 	width: 100%;
 }
-.form > div:not(.CodeMirror) > *:not(.lastchild) {
+.form > div:not(.CodeMirror) > *:not(:last-child) {
 	margin-right: 5px;
 }
 .form > label > * {
@@ -600,4 +645,9 @@ body, input {
 
 .CodeMirror {
 	cursor: text;
+}
+
+.highlight.readonly + .CodeMirror {
+	background: #CCC;
+	cursor: default;
 }

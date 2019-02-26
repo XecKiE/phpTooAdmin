@@ -11,11 +11,11 @@ class Context {
 	private $logged_in = false;
 
 	private function __construct() {
-		$this->server   = isset($_POST['server'])   ? $_POST['server']   : (isset($_GET['server'])   ? $_GET['server']   : null);
-		$this->database = isset($_POST['database']) ? $_POST['database'] : (isset($_GET['database']) ? $_GET['database'] : null);
-		$this->table    = isset($_POST['table'])    ? $_POST['table']    : (isset($_GET['table'])    ? $_GET['table']    : null);
-		$this->control  = isset($_POST['control'])  ? $_POST['control']  : (isset($_GET['control'])  ? $_GET['control']  : null);
-		$this->detail   = isset($_POST['detail'])   ? $_POST['detail']   : (isset($_GET['detail'])   ? $_GET['detail']   : []  );
+		$this->server   = $_POST['server']   ?? $_GET['server']   ?? null;
+		$this->database = $_POST['database'] ?? $_GET['database'] ?? null;
+		$this->table    = $_POST['table']    ?? $_GET['table']    ?? null;
+		$this->control  = $_POST['control']  ?? $_GET['control']  ?? null;
+		$this->detail   = $_POST['detail']   ?? $_GET['detail']   ?? [];
 		$this->color    = ['r' => 182, 'g' => 183, 'b' => 177];
 		$this->ajax     = isset($_GET['ajax']);
 		if(!isset($_SESSION['token'])) {
@@ -48,6 +48,9 @@ class Context {
 			if($_SESSION['CONNECTION'][$this->server]) {
 				if(db_init($this->server)) {
 					$this->logged_in = true;
+					if($this->database) {
+						db_query("USE ".db_str($this->database));
+					}
 				} else {
 					unset($_SESSION['CONNECTION'][$this->server]);
 				}
@@ -81,7 +84,7 @@ class Context {
 		if($this->control !== null) {
 			$return['control'] = $this->control;
 		}
-		return json_encode($return);
+		return json_encode($return, JSON_FORCE_OBJECT);
 	}
 
 	public static function get() {

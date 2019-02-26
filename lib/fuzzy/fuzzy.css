@@ -41,17 +41,17 @@
 	background-color: #3a3a37;
 }
 
-::-webkit-scrollbar-track
+.fuzzy::-webkit-scrollbar-track
 {
 	background-color: #292a26;
 	border-left: 5px solid #171814;
 }
-::-webkit-scrollbar
+.fuzzy::-webkit-scrollbar
 {
 	width: 20px;
 	background-color: #292a26;
 }
-::-webkit-scrollbar-thumb
+.fuzzy::-webkit-scrollbar-thumb
 {
 	background-color: #484946;
 	border-left: 5px solid #171814;

@@ -205,18 +205,35 @@ function get_table_info($server = null, $database = null, $table = null) {
 	}
 }
 
-function get_data_from_query($query = null) {
-	if($query === null) {
-		$query = "
-			SELECT *
-			FROM ".c()->database().".".c()->table()."
-		";
+function get_default_query() {
+	return "SELECT * FROM ".db_str(c()->table())."";
+}
+
+function get_default_keys() {
+	$return = [];
+
+	$results = db_query("
+		SHOW KEYS
+		FROM ".db_str(c()->table())."
+		WHERE Key_name = 'PRIMARY'
+	");
+	while($row = db_fetch_array($results)) {
+		$return[] = $row['Column_name'];
 	}
+
+	return $return;
+}
+
+
+function get_data_from_query($query) {
 	$return = [];
 	if(c()->logged_in()) {
-		$results = db_query($query); //TODO LIMIT 50
 		$return['legend'] = [];
 		$return['rows'] = [];
+		//We get the number of rows, if the query is fast enough (add "SET STATEMENT MAX_STATEMENT_TIME=2 FOR " before the query)
+		$return['page'] = c()->detail()['page'] ?? 1;
+		$return['limit'] = c()->detail()['limit'] ?? '25';
+		$results = db_query(preg_replace('/(\W*SELECT)\b(.*)/', '$1 SQL_CALC_FOUND_ROWS$2', $query." LIMIT ".db_int($return['limit'])." OFFSET ".db_int(($return['page'] - 1) * $return['limit'])));
 		while($row = db_fetch_array($results)) {
 			if(!$return['legend']) {
 				$return['legend'] = array_keys($row);
@@ -224,6 +241,38 @@ function get_data_from_query($query = null) {
 			$return['rows'][] = $row;
 		}
 		db_free($results);
+		$results = db_query("SELECT FOUND_ROWS() as nb");
+		if($row = db_fetch_array($results)) {
+			$return['total_rows'] = $row['nb'];
+			$return['max_page'] = (int)ceil($row['nb']/$return['limit']);
+		}
+		
 	}
+	return $return;
+}
+
+function get_pages_around($page, $page_max) {
+	$return = array_unique([$page, 1, $page_max]);
+	$operator = -1;
+	$t = $page;
+	$i = 0;
+	while(($t += $operator) > 1) {
+		if(++$i % 2 == 0) {
+			$operator *= 2;
+		}
+		$return[] = $t;
+	}
+
+	$operator = 1;
+	$t = $page;
+	$i = 0;
+	while(($t += $operator) < $page_max) {
+		if(++$i % 2 == 0) {
+			$operator *= 2;
+		}
+		$return[] = $t;
+	}
+
+	sort($return);
 	return $return;
 }

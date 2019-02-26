@@ -6,129 +6,16 @@
 /*************************************************************************************************/
 function initialize() {
 	window.addEventListener('keydown', on_key_down);
-	TABS.current_tab = document.querySelector('#tabs > .selected');
-	TABS.current_page = document.querySelector('#pages > .selected');
-	initialize_page(0, start_context);
+	Page.current_tab = document.querySelector('#tabs > .selected');
+	Page.current_page = document.querySelector('#pages > .selected');
+	Page.pages[0] = new Page(0, start_context);
 	if(login_on_start !== null) {
-		request_login(login_on_start, 0, null, load_content);
+		request_login(login_on_start, 0, null, function() {
+			Page.current().load_content();
+		});
 	}
 };
 
-
-
-
-/*************************************************************************************************/
-/*                                         TAB MANAGEMENT                                        */
-/*************************************************************************************************/
-var TABS = {
-	tab_nb: 0,
-	current_tab: null,
-	current_page: null,
-	current_id: 0,
-};
-function focus_tab(_dom) {
-	if(TABS.current_tab !== null) {
-		TABS.current_tab.classList.remove('selected');
-		TABS.current_page.classList.remove('selected');
-	}
-	TABS.current_tab = _dom;
-	TABS.current_tab.classList.add('selected');
-	TABS.current_id = TABS.current_tab.dataset.id;
-	TABS.current_page = document.getElementById('page_'+TABS.current_id);
-	TABS.current_page.classList.add('selected');
-	set_url();
-}
-function tab_close() {
-	if(TABS.current_tab !== null) {
-		var n = TABS.current_tab.previousElementSibling;
-		if(n === null) {
-			n = TABS.current_tab.nextElementSibling;
-		}
-		TABS.current_tab.remove();
-		TABS.current_page.remove();
-		if(n !== null && n.id !== 'new_tab') {
-			TABS.current_tab = n;
-			TABS.current_tab.classList.add('selected');
-			TABS.current_id = TABS.current_tab.dataset.id;
-			TABS.current_page = document.getElementById('page_'+TABS.current_id);
-			TABS.current_page.classList.add('selected');
-			set_url();
-		} else {
-			TABS.current_tab = null;
-			TABS.current_page = null;
-		}
-	}
-}
-function tab_left() {
-	if(TABS.current_tab !== null) {
-		var n = TABS.current_tab.previousElementSibling;
-		if(n === null) {
-			n = document.getElementById('new_tab').previousElementSibling;
-		}
-		if(n !== null) {
-			TABS.current_tab.classList.remove('selected');
-			TABS.current_page.classList.remove('selected');
-			TABS.current_tab = n;
-			TABS.current_tab.classList.add('selected');
-			TABS.current_id = TABS.current_tab.dataset.id;
-			TABS.current_page = document.getElementById('page_'+TABS.current_id);
-			TABS.current_page.classList.add('selected');
-			set_url();
-		}
-	}
-}
-function tab_right() {
-	if(TABS.current_tab !== null) {
-		var n = TABS.current_tab.nextElementSibling;
-		if(n.id === 'new_tab') {
-			n = null;
-		}
-		if(n === null) {
-			n = TABS.current_tab.parentElement.firstElementChild;
-		}
-		if(n !== null) {
-			TABS.current_tab.classList.remove('selected');
-			TABS.current_page.classList.remove('selected');
-			TABS.current_tab = n;
-			TABS.current_tab.classList.add('selected');
-			TABS.current_id = TABS.current_tab.dataset.id;
-			TABS.current_page = document.getElementById('page_'+TABS.current_id);
-			TABS.current_page.classList.add('selected');
-			set_url();
-		}
-	}
-}
-
-function tab_new() {
-	var new_context = {};
-	for(var i in PAGE[TABS.current_id].context) {
-		new_context[i] = PAGE[TABS.current_id].context[i];
-	}
-	ajax({
-		url: '/?ajax=1&action=new_tab&tab_nb='+(++TABS.tab_nb),
-		method: 'post',
-		responseType: 'json',
-		data: new_context
-	}).done(function(data) {
-		if(TABS.current_tab !== null) {
-			TABS.current_tab.classList.remove('selected');
-			TABS.current_page.classList.remove('selected');
-			TABS.current_tab.insertAdjacentHTML('afterend', data.tab);
-			TABS.current_tab = TABS.current_tab.nextElementSibling;
-		} else {
-			var d = document.getElementById('new_tab');
-			d.insertAdjacentHTML('beforebegin', data.tab);
-			TABS.current_tab = d.previousElementSibling;
-		}
-		document.getElementById('pages').insertAdjacentHTML('beforeend', data.page);
-		TABS.current_tab.classList.add('selected');
-		TABS.current_id = TABS.current_tab.dataset.id;
-		TABS.current_page = document.getElementById('page_'+TABS.current_id);
-		TABS.current_page.classList.add('selected');
-		initialize_page(TABS.current_id, new_context);
-		set_url();
-	});
-}
 
 
 /*************************************************************************************************/
@@ -142,12 +29,52 @@ HTMLElement.prototype.replaceHTML = function(_html) {
 }
 
 
+function json_to_uri(_value, _breadcrumb) {
+	if(typeof _breadcrumb == 'undefined') {
+		_breadcrumb = [];
+	}
+	if(Array.isArray(_value)) {
+		var t = [];
+		for(var i=0 ; i<_value.length ; i++) {
+			var t2 = _breadcrumb.slice();
+			t2.push({});
+			t.push(json_to_uri(_value[i], t2));
+		}
+		return t.join('&');
+	} else if(typeof _value == 'object') {
+		var t = [];
+		for(var i in _value) {
+			var t2 = _breadcrumb.slice();
+			t2.push(i)
+			t.push(json_to_uri(_value[i], t2));
+		}
+		return t.join('&');
+	} else {
+		var t = '';
+		for(var i=0 ; i<_breadcrumb.length ; i++) {
+			if(typeof _breadcrumb[i] == 'object') {
+				t += '[]';
+			} else if(i == 0) {
+				t += encodeURIComponent(_breadcrumb[i]);
+			} else {
+				t += '['+encodeURIComponent(_breadcrumb[i])+']';
+			}
+		}
+		return t+'='+encodeURIComponent(_value);
+	}
+}
+
+function select_val(_select) {
+	return _select.options[_select.selectedIndex].value;
+}
+
+
 /*************************************************************************************************/
 /*                                              AJAX                                             */
 /*************************************************************************************************/
 function ajax(_settings = {}) {
 	var xhr = new XMLHttpRequest();
-	xhr.tab_id = _settings.tab_id ? _settings.tab_id : TABS.current_id;
+	xhr.tab_id = _settings.tab_id ? _settings.tab_id : Page.current_id;
 	xhr.settings = _settings;
 	var url = _settings.url || window.location.href;
 	var data = '';
@@ -169,13 +96,10 @@ function ajax(_settings = {}) {
 	xhr.callback_done = [];
 	xhr.callback_error = [];
 
-	if(_settings.responseType) {
-		xhr.responseType = _settings.responseType;
-	}
+	var responseType = _settings.responseType || 'json';
+	xhr.responseType = responseType;
+
 	xhr.open(method, url);
-	if(_settings.method == 'post' && data) {
-		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-	}
 
 	//TODO Un prototype ou un truc du genre ?
 	xhr.onreadystatechange = function() {
@@ -208,6 +132,7 @@ function ajax(_settings = {}) {
 	}
 
 	if(method == 'post' && data) {
+		xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 		xhr.send(data);
 	} else {
 		xhr.send();
@@ -251,13 +176,13 @@ var login_waiting_popup = {},
 function request_login(_login_form, _tab_id, _ajax_query = null, _callback = null) {
 	set_url();
 	set_title();
-	if(typeof login_waiting_popup[PAGE[_tab_id].context.server] == 'undefined') {
-		login_waiting_popup[PAGE[_tab_id].context.server] = [];
+	if(typeof login_waiting_popup[Page.id(_tab_id).context.server] == 'undefined') {
+		login_waiting_popup[Page.id(_tab_id).context.server] = [];
 	}
-	if(!login_waiting_popup[PAGE[_tab_id].context.server].length) {
+	if(!login_waiting_popup[Page.id(_tab_id).context.server].length) {
 		//Add login form on current tab
 		info('Il faut vous connecter pour continuer');
-		login_waiting_popup[PAGE[_tab_id].context.server].push(new Popup({
+		login_waiting_popup[Page.id(_tab_id).context.server].push(new Popup({
 			title: 'Se connecter',
 			contentHTML: _login_form,
 		}));
@@ -265,12 +190,12 @@ function request_login(_login_form, _tab_id, _ajax_query = null, _callback = nul
 	}
 	//Add ajax call to waiting list
 	if(_ajax_query !== null) {
-		if(typeof login_waiting_ajax[PAGE[_tab_id].context.server] == 'undefined') {
-			login_waiting_ajax[PAGE[_tab_id].context.server] = [];
+		if(typeof login_waiting_ajax[Page.id(_tab_id).context.server] == 'undefined') {
+			login_waiting_ajax[Page.id(_tab_id).context.server] = [];
 		}
 		//TODO Vérifier que ça peut pas péter des trucs
 		_ajax_query.settings.tab_id = _tab_id;
-		login_waiting_ajax[PAGE[_tab_id].context.server].push({
+		login_waiting_ajax[Page.id(_tab_id).context.server].push({
 			settings: _ajax_query.settings,
 			callback_done: _ajax_query.callback_done,
 			callback_error: _ajax_query.callback_error
@@ -278,10 +203,10 @@ function request_login(_login_form, _tab_id, _ajax_query = null, _callback = nul
 	}
 	//Add callback to waiting list
 	if(_callback !== null) {
-		if(typeof login_waiting_callbacks[PAGE[_tab_id].context.server] == 'undefined') {
-			login_waiting_callbacks[PAGE[_tab_id].context.server] = [];
+		if(typeof login_waiting_callbacks[Page.id(_tab_id).context.server] == 'undefined') {
+			login_waiting_callbacks[Page.id(_tab_id).context.server] = [];
 		}
-		login_waiting_callbacks[PAGE[_tab_id].context.server].push(_callback);
+		login_waiting_callbacks[Page.id(_tab_id).context.server].push(_callback);
 	}
 }
 
@@ -325,10 +250,12 @@ function logout() {
 		url: '/?ajax=1&action=logout',
 		method: 'post',
 		responseType: 'json',
-		data: PAGE[TABS.current_id].context
+		data: Page.current().context
 	}).done(function(data) {
 		if(data.login_form) {
-			request_login(data.login_form, TABS.current_id, null, load_content);
+			request_login(data.login_form, Page.current_id, null, function() {
+				Page.current().load_content();
+			});
 		}
 	});
 }
@@ -345,7 +272,7 @@ function refresh_server_list() {
 		responseType: 'json'
 	}).done(function(data) {
 		breadcrumb_server = data;
-		PAGE[TABS.current_id].server_list.set_data(breadcrumb_server);
+		Page.current().server_list.set_data(breadcrumb_server);
 	});
 }
 function refresh_database_list(_server) {
@@ -358,7 +285,7 @@ function refresh_database_list(_server) {
 		}
 	}).done(function(data) {
 		breadcrumb_database[_server] = data;
-		PAGE[TABS.current_id].database_list.set_data(breadcrumb_database[_server]);
+		Page.current().database_list.set_data(breadcrumb_database[_server]);
 	});
 }
 function refresh_table_list(_server, _database) {
@@ -375,7 +302,7 @@ function refresh_table_list(_server, _database) {
 			breadcrumb_table[_server] = {};
 		}
 		breadcrumb_table[_server][_database] = data;
-		PAGE[TABS.current_id].table_list.set_data(breadcrumb_table[_server][_database]);
+		Page.current().table_list.set_data(breadcrumb_table[_server][_database]);
 	});
 }
 
@@ -383,88 +310,91 @@ function select_server(_server_color, _event) {
 	var t = _server_color.split('|');
 	var _server = t[0];
 	var color = JSON.parse(t[1]);
-	if(PAGE[TABS.current_id].context.server != _server) {
-		PAGE[TABS.current_id].context.server = _server;
-		PAGE[TABS.current_id].database_list.reset();
-		PAGE[TABS.current_id].database_list.d_input.disabled = false;
-		PAGE[TABS.current_id].table_list.reset();
-		PAGE[TABS.current_id].table_list.d_input.disabled = true;
-		console.log(color);
+	if(Page.current().context.server != _server) {
+		Page.current().context.server = _server;
+		Page.current().database_list.reset();
+		Page.current().database_list.d_input.disabled = false;
+		Page.current().table_list.reset();
+		Page.current().table_list.d_input.disabled = true;
 		document.getElementById('favicon').href = document.getElementById('favicon').href.replace(/(.*\?r=)[0-9]+(&g=)[0-9]+(&b=)[0-9]+(.*)/, '$1'+color.r+'$2'+color.g+'$3'+color.b+'$4');;
 		document.getElementById('theme').href = document.getElementById('theme').href.replace(/(.*\?r=)[0-9]+(&g=)[0-9]+(&b=)[0-9]+(.*)/, '$1'+color.r+'$2'+color.g+'$3'+color.b+'$4');;
 	}
 	if(_event.type == 'keydown' && _event.key == 'Tab') {
 		//TODO Load and Refrech datbase_list contnet
-		refresh_database_list(PAGE[TABS.current_id].context.server);
-		PAGE[TABS.current_id].database_list.focus();
+		refresh_database_list(Page.current().context.server);
+		Page.current().database_list.focus();
 	} else {
 		//Load page content
-		load_content({get_controls: true, remove: ['control', 'database', 'table']});
+		Page.current().context_remove(['control', 'database', 'table']);
+		Page.current().load_content({get_controls: true});
 	}
 }
 function back_server(_event) {
-	delete(PAGE[TABS.current_id].context.server);
-	PAGE[TABS.current_id].server_list.reset();
-	PAGE[TABS.current_id].database_list.reset();
-	PAGE[TABS.current_id].table_list.reset();
-	PAGE[TABS.current_id].database_list.d_input.disabled = true;
-	PAGE[TABS.current_id].table_list.d_input.disabled = true;
-	load_content({get_controls: true, remove: ['control']});
+	delete(Page.current().context.server);
+	Page.current().server_list.reset();
+	Page.current().database_list.reset();
+	Page.current().table_list.reset();
+	Page.current().database_list.d_input.disabled = true;
+	Page.current().table_list.d_input.disabled = true;
+	Page.current().context_remove(['control']);
+	Page.current().load_content({get_controls: true});
 }
 function focus_server() {
 	refresh_server_list();
 }
 
 function select_database(_database, _event) {
-	if(PAGE[TABS.current_id].context.database != _database) {
-		PAGE[TABS.current_id].context.database = _database;
-		PAGE[TABS.current_id].table_list.reset();
-		PAGE[TABS.current_id].table_list.d_input.disabled = false;
+	if(Page.current().context.database != _database) {
+		Page.current().context.database = _database;
+		Page.current().table_list.reset();
+		Page.current().table_list.d_input.disabled = false;
 	}
 	//TODO Load and Refrech table_list contnet
-	refresh_table_list(PAGE[TABS.current_id].context.server, PAGE[TABS.current_id].context.database);
+	refresh_table_list(Page.current().context.server, Page.current().context.database);
 	if(_event.type == 'keydown' && _event.key == 'Tab') {
-		PAGE[TABS.current_id].table_list.focus();
+		Page.current().table_list.focus();
 	} else {
 		//Load page content
-		load_content({get_controls: true, remove: ['control', 'table']});
+		Page.current().context_remove(['control', 'table']);
+		Page.current().load_content({get_controls: true});
 	}
 }
 function back_database(_event) {
-	delete(PAGE[TABS.current_id].context.database);
-	PAGE[TABS.current_id].database_list.reset();
-	PAGE[TABS.current_id].table_list.reset();
-	PAGE[TABS.current_id].table_list.d_input.disabled = true;
-	PAGE[TABS.current_id].server_list.focus();
+	delete(Page.current().context.database);
+	Page.current().database_list.reset();
+	Page.current().table_list.reset();
+	Page.current().table_list.d_input.disabled = true;
+	Page.current().server_list.focus();
 }
 function focus_database() {
-	refresh_database_list(PAGE[TABS.current_id].context.server);
+	refresh_database_list(Page.current().context.server);
 }
 
 function select_table(_table, _event) {
-	if(PAGE[TABS.current_id].context.table != _table) {
-		PAGE[TABS.current_id].context.table = _table;
+	if(Page.current().context.table != _table) {
+		Page.current().context.table = _table;
 		//TODO Load and Refrech datbase_list contnet
 		//Load page content
 	}
-	load_content({get_controls: true, remove: ['control']});
+	Page.current().context_remove(['control']);
+	Page.current().load_content({get_controls: true});
 }
 function back_table(_event) {
-	delete(PAGE[TABS.current_id].context.table);
-	PAGE[TABS.current_id].table_list.reset();
-	PAGE[TABS.current_id].database_list.focus();
+	delete(Page.current().context.table);
+	Page.current().table_list.reset();
+	Page.current().database_list.focus();
 }
 function focus_table() {
-	refresh_table_list(PAGE[TABS.current_id].context.server, PAGE[TABS.current_id].context.database);
+	refresh_table_list(Page.current().context.server, Page.current().context.database);
 }
 
 function open_breadcrumb() {
-	if(typeof PAGE[TABS.current_id].context.table != 'undefined' && PAGE[TABS.current_id].context.table !== null) {
-		PAGE[TABS.current_id].table_list.focus();
-	} else if(typeof PAGE[TABS.current_id].context.database != 'undefined' && PAGE[TABS.current_id].context.database !== null) {
-		PAGE[TABS.current_id].database_list.focus();
+	if(typeof Page.current().context.table != 'undefined' && Page.current().context.table !== null) {
+		Page.current().table_list.focus();
+	} else if(typeof Page.current().context.database != 'undefined' && Page.current().context.database !== null) {
+		Page.current().database_list.focus();
 	} else {
-		PAGE[TABS.current_id].server_list.focus();
+		Page.current().server_list.focus();
 	}
 }
 
@@ -472,52 +402,16 @@ function open_breadcrumb() {
 /*************************************************************************************************/
 /*                                            CONTENT                                            */
 /*************************************************************************************************/
-function load_content(_options = {}) {
-	var tab_id = TABS.current_id;
-	if(_options.tab_id) {
-		tab_id = options.tab_id;
-	}
-	if(_options.add) {
-		for(var i in _options.add) {
-			PAGE[tab_id].context[i] = _options.add[i];
-			delete PAGE[tab_id].context.detail; //TODO Quand on change de page, ça vire les détails, il faudrait gérer ça dans une fonction à part
-		}
-	}
-	if(_options.remove) {
-		for(var i=0 ; i<_options.remove.length ; i++) {
-			delete PAGE[tab_id].context[_options.remove[i]];
-			delete PAGE[tab_id].context.detail; //TODO Quand on change de page, ça vire les détails, il faudrait gérer ça dans une fonction à part
-		}
-	}
-	set_url();
-	set_title();
-	if(PAGE[tab_id].requests.content != null) {
-		PAGE[tab_id].requests.content.abort();
-	}
-	//TODO Ajouter le tab_id en paramètre de la méthode
-	PAGE[tab_id].requests.content = ajax({
-		url: '/?ajax=1&action=get_content'+(_options.get_controls?'_and_controls':''),
-		method: 'post',
-		responseType: 'json',
-		data: PAGE[tab_id].context
-	}).done(function(data) {
-		//TODO Pour tout ces appels ajax : vérifier qu'on changement de page entre temps ne charge pas le contenu dans le mauvais onglet
-		if(typeof data.content != 'undefined') {
-			TABS.current_page.getElementsByClassName('content')[0].replaceHTML(data.content);
-		}
-		if(typeof data.controls != 'undefined') {
-			TABS.current_page.getElementsByClassName('controls')[0].replaceHTML(data.controls);
-		}
-
-		init_highlight();
-	});
-}
 
 function init_highlight() {
 	var d = document.querySelectorAll('.highlight:not(.treated)');
 	for(var i=0 ; i<d.length ; i++) {
 		(function(_dom) {
-			_dom.highlight = CodeMirror.fromTextArea(_dom);
+			var o = {};
+			if(_dom.classList.contains('readonly')) {
+				o.readOnly = 'nocursor';
+			}
+			_dom.highlight = CodeMirror.fromTextArea(_dom, o);
 			_dom.highlight.on('change', function(_editor) {
 				_dom.value = _editor.getValue();
 			});
@@ -533,78 +427,35 @@ function init_highlight() {
 /*************************************************************************************************/
 function set_url() {
 	var gets = [];
-	if(PAGE[TABS.current_id].context.server) {
-		gets.push('server='+PAGE[TABS.current_id].context.server);
+	if(Page.current().context.server) {
+		gets.push('server='+Page.current().context.server);
 	}
-	if(PAGE[TABS.current_id].context.server && PAGE[TABS.current_id].context.database) {
-		gets.push('database='+PAGE[TABS.current_id].context.database);
+	if(Page.current().context.server && Page.current().context.database) {
+		gets.push('database='+Page.current().context.database);
 	}
-	if(PAGE[TABS.current_id].context.server && PAGE[TABS.current_id].context.database && PAGE[TABS.current_id].context.table) {
-		gets.push('table='+PAGE[TABS.current_id].context.table);
+	if(Page.current().context.server && Page.current().context.database && Page.current().context.table) {
+		gets.push('table='+Page.current().context.table);
 	}
-	if(PAGE[TABS.current_id].context.control) {
-		gets.push('control='+PAGE[TABS.current_id].context.control);
+	if(Page.current().context.control) {
+		gets.push('control='+Page.current().context.control);
 	}
 	history.pushState({}, 'TODO', '?'+gets.join('&'));
 }
 
 function set_title() {
-	if(PAGE[TABS.current_id].context.server) {
-		if(PAGE[TABS.current_id].context.database) {
-			if(PAGE[TABS.current_id].context.table) {
-				PAGE[TABS.current_id].d_tab.textContent = PAGE[TABS.current_id].context.table;
+	if(Page.current().context.server) {
+		if(Page.current().context.database) {
+			if(Page.current().context.table) {
+				Page.current().d_tab.textContent = Page.current().context.table;
 			} else {
-				PAGE[TABS.current_id].d_tab.textContent = PAGE[TABS.current_id].context.database;
+				Page.current().d_tab.textContent = Page.current().context.database;
 			}
 		} else {
-			PAGE[TABS.current_id].d_tab.textContent = PAGE[TABS.current_id].context.control ? PAGE[TABS.current_id].context.control : 'welcome';
+			Page.current().d_tab.textContent = Page.current().context.control ? Page.current().context.control : 'welcome';
 		}
 	} else {
-		PAGE[TABS.current_id].d_tab.textContent = PAGE[TABS.current_id].context.control ? PAGE[TABS.current_id].context.control : 'welcome';
+		Page.current().d_tab.textContent = Page.current().context.control ? Page.current().context.control : 'welcome';
 	}
-}
-
-
-/*************************************************************************************************/
-/*                                             PAGES                                             */
-/*************************************************************************************************/
-var PAGE = [];
-function refresh_page(nb) {
-	console.log('refresh '+nb);
-}
-
-function initialize_page(_id, _context = {}) {
-	PAGE[_id] = {
-		requests: {
-			content: null
-		}
-	};
-
-	PAGE[_id].context = _context
-
-	PAGE[_id].d_tab = document.getElementById('tab_'+_id);
-	PAGE[_id].d_page = document.getElementById('page_'+_id);
-
-	PAGE[_id].d_server = PAGE[_id].d_page.getElementsByClassName('breadcrumb_server')[0];
-	PAGE[_id].d_database = PAGE[_id].d_page.getElementsByClassName('breadcrumb_database')[0];
-	PAGE[_id].d_table = PAGE[_id].d_page.getElementsByClassName('breadcrumb_table')[0];
-
-	PAGE[_id].server_list = new Fuzzy(PAGE[_id].d_server, breadcrumb_server, {
-		on_select: select_server,
-		on_back: back_server,
-		on_focus: focus_server
-	});
-	PAGE[_id].database_list = new Fuzzy(PAGE[_id].d_database, PAGE[_id].context.server ? breadcrumb_database[PAGE[_id].context.server] : null, {
-		on_select: select_database,
-		on_back: back_database,
-		on_focus: focus_database
-	});
-	PAGE[_id].table_list = new Fuzzy(PAGE[_id].d_table, PAGE[_id].context.server && PAGE[_id].context.database ? breadcrumb_table[PAGE[_id].context.server][PAGE[_id].context.database] : null, {
-		on_select: select_table,
-		on_back: back_table,
-		on_focus: focus_table
-	});
-
 }
 
 
@@ -688,7 +539,7 @@ function Notification(_notif = {}) {
 	this.d_notif.style.marginTop = -(this.d_notif.offsetHeight+5)+'px';
 	setTimeout(function() {
 		that.d_notif.classList.remove('hidden');
-		console.log(that.d_notif.style.marginTop);
+		//TODO Animation not working FML
 		that.d_notif.style.marginTop = '5px';
 	}, 5);
 }
@@ -768,11 +619,11 @@ function Popup(_popup = {}) {
 		this.d_popup.appendChild(t2);
 	}
 
-	this.popup_bg = PAGE[TABS.current_id].d_page.getElementsByClassName('popup_bg')[0];
+	this.popup_bg = Page.current().d_page.getElementsByClassName('popup_bg')[0];
 	if(!this.popup_bg) {
 		this.popup_bg = document.createElement('div');
 		this.popup_bg.classList.add('popup_bg');
-		PAGE[TABS.current_id].d_page.insertAdjacentElement('afterbegin', this.popup_bg);
+		Page.current().d_page.insertAdjacentElement('afterbegin', this.popup_bg);
 	}
 	this.popup_bg.insertAdjacentElement('afterbegin', this.d_popup);
 }
@@ -800,19 +651,19 @@ function on_key_down(event) {
 	if(['INPUT', 'TEXTAREA'].indexOf(document.activeElement.tagName.toUpperCase()) === -1) {
 		var stop = false;
 		if(event.ctrlKey && event.altKey && event.code == 'KeyT') {
-			tab_new();
+			Page.new();
 			stop = true;
 		}
 		if(event.ctrlKey && event.altKey && event.code == 'KeyQ') {
-			tab_left();
+			Page.left();
 			stop = true;
 		}
 		if(event.ctrlKey && event.altKey && event.code == 'KeyE') {
-			tab_right();
+			Page.right();
 			stop = true;
 		}
 		if(event.ctrlKey && event.altKey && event.code == 'KeyZ') {
-			tab_close();
+			Page.close();
 			stop = true;
 		}
 		if(event.code == 'Tab') {
@@ -832,8 +683,8 @@ function on_key_down(event) {
 /*                                         FORMULAIRE SQL                                        */
 /*************************************************************************************************/
 function sql_execute(_form) {
-	ctx_add_detail('sql_query', _form.sql_query.value);
-	load_content();
+	Page.current().context_detail_add({'sql_query': _form.sql_query.value});
+	Page.current().load_content();
 }
 
 function sql_empty(_form) {
@@ -841,58 +692,45 @@ function sql_empty(_form) {
 }
 
 function sql_format(_form) {
-	console.log('TODO');
+	info('TODO');
 }
 
 
-
-/*************************************************************************************************/
-/*                                            CONTEXTE                                           */
-/*************************************************************************************************/
-function ctx_add_detail(_key, _value, _id = null) {
-	if(_id === null) {
-		_id = TABS.current_id;
+function edit_query(_button) {
+	var d = _button.form;
+	d.sql_query.highlight.toTextArea();
+	d.sql_query.classList.remove('treated', 'readonly');
+	init_highlight();
+	var d2 = d.getElementsByClassName('btn');
+	for(var i=0 ; i<d2.length ; i++) {
+		d2[i].classList.toggle('hidden');
 	}
-	if(typeof PAGE[_id].context.detail == 'undefined') {
-		PAGE[_id].context.detail = {};
-	}
-	PAGE[_id].context.detail[_key] = _value;
 }
 
-
-
-function json_to_uri(_value, _breadcrumb) {
-	if(typeof _breadcrumb == 'undefined') {
-		_breadcrumb = [];
-	}
-	if(Array.isArray(_value)) {
-		var t = [];
-		for(var i=0 ; i<_value.length ; i++) {
-			var t2 = _breadcrumb.slice();
-			t2.push({});
-			t.push(json_to_uri(_value[i], t2));
-		}
-		return t.join('&');
-	} else if(typeof _value == 'object') {
-		var t = [];
-		for(var i in _value) {
-			var t2 = _breadcrumb.slice();
-			t2.push(i)
-			t.push(json_to_uri(_value[i], t2));
-		}
-		return t.join('&');
-	} else {
-		var t = '';
-		for(var i=0 ; i<_breadcrumb.length ; i++) {
-			if(typeof _breadcrumb[i] == 'object') {
-				t += '[]';
-			} else if(i == 0) {
-				t += encodeURIComponent(_breadcrumb[i]);
-			} else {
-				t += '['+encodeURIComponent(_breadcrumb[i])+']';
-			}
-		}
-		return t+'='+encodeURIComponent(_value);
-	}
-
+function tv_number_rows(_number_rows) {
+	Page.current().context_detail_add({'limit': _number_rows});
+	Page.current().load_content();
 }
+
+function tv_page(_page_nb) {
+	Page.current().context_detail_add({'page': _page_nb});
+	Page.current().load_content();
+}
+
+function tv_edit(_key) {
+	info('TODO');
+}
+function tv_copy(_key) {
+	info('TODO');
+}
+function tv_delete(_key) {
+	info('TODO');
+}
+
+/*https://database.xeck.fr/?ajax=1&action=get_content_and_controls
+server: 1
+database: performance_schema
+
+https://database.xeck.fr/?ajax=1&action=get_content_and_controls
+ajax: 1
+action: get_content_and_controls*/
