@@ -209,6 +209,26 @@ function get_default_query() {
 	return "SELECT * FROM ".db_str(c()->table())."";
 }
 
+function get_query_search() {
+	//TODO Ajouter des quotes sur les strings des fois ?
+	$sql_where = [];
+	$search_params = c()->detail()['search_params'];
+	foreach($search_params as $column => $search) {
+		if($search['value'] !== '') {
+			if(stripos($search['operator'], '...') !== false) {
+				$sql_where[] = db_str($column)." ".str_replace('...', $search['value'], $search['operator']);
+			} else {
+				$sql_where[] = db_str($column)." ".$search['operator']." ".$search['value'];
+			}
+		}
+	}
+	$query = "SELECT * FROM ".db_str(c()->table())."";
+	if(count($sql_where)) {
+		$query .= " WHERE ".implode(" AND ", $sql_where);
+	}
+	return $query;
+}
+
 function get_default_keys() {
 	$return = [];
 

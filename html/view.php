@@ -287,9 +287,10 @@ function get_content_table() {
 			$return .= get_content_sql(true);
 			break;
 		case 'sql':
-			return get_content_sql();
+			$return .= get_content_sql();
 			break;
 		case 'search':
+			$return .= get_content_search();
 			break;
 		case 'insert':
 			break;
@@ -434,6 +435,62 @@ function get_content_table() {
 }
 
 
+function get_content_search() {
+	$return = '';
+
+	$table_info = get_table_info();
+
+	$search_params = c()->detail()['search_params'];
+
+	$return .= '<form class="form" onsubmit="search_execute(this); return false;">
+						<table class="table">
+							<tr>
+								<th>Colonne</th>
+								<th>Type</th>
+								<th>Opérateur</th>
+								<th>Valeur</th>
+							</tr>';
+	foreach($table_info['columns'] as $column) {
+		$return .= '
+							<tr>
+								<td>'.p($column['name']).'</td>
+								<td>'.p($column['type']).'</td>
+								<td>
+									<select name="'.p($column['name']).'[operator]">
+										<option value="="'.          ($search_params[p($column['name'])]['operator'] == '='           ? ' selected' : '').'>=</option>
+										<option value="!="'.         ($search_params[p($column['name'])]['operator'] == '!='          ? ' selected' : '').'>!=</option>
+										<option value="LIKE"'.       ($search_params[p($column['name'])]['operator'] == 'LIKE'        ? ' selected' : '').'>LIKE</option>
+										<option value="IN(...)"'.    ($search_params[p($column['name'])]['operator'] == 'IN(...)'     ? ' selected' : '').'>IN(...)</option>
+										<option value="NOT IN(...)"'.($search_params[p($column['name'])]['operator'] == 'NOT IN(...)' ? ' selected' : '').'>NOT IN(...)</option>
+									</select>
+								</td>
+								<td><input type="text" name="'.p($column['name']).'[value]" value="'.$search_params[p($column['name'])]['value'].'" /></td>
+							</tr>';
+	}
+	$return .= '
+						</table>
+						<div>
+							<button class="btn" onclick="search_empty(this.form); return false;">Vider</button>
+							<button type="submit" class="btn">Rechercher</button>
+						</div>
+					</form>';
+
+
+
+
+	if($search_params) {
+		$keys = [];
+		if($default_query) {
+			$keys = get_default_keys();
+		}
+		$query = get_query_search();
+		$return .= get_data_table_from_query($query, $keys);
+	}
+
+	return $return;
+}
+
+
 function get_content_sql($default_query = false) {
 	$return = '';
 
@@ -452,8 +509,8 @@ function get_content_sql($default_query = false) {
 	$return .= '<form class="form" onsubmit="sql_execute(this); return false;">
 						<textarea class="highlight'.($show_data ? ' readonly' : '').'" name="sql_query">'.$query.'</textarea>
 						<div>
-							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_empty(this.form); return false;">Vider</button>
-							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_format(this.form); return false;">Formatter</button>
+							<button class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_empty(this.form); return false;">Vider</button>
+							<button class="btn'.($show_data ? ' hidden' : '').'" onclick="sql_format(this.form); return false;">Formatter</button>
 							<button type="submit" class="btn'.($show_data ? ' hidden' : '').'">Exécuter</button>';
 	if($show_data) {
 		$return .= '

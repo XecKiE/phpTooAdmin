@@ -64,6 +64,49 @@ function json_to_uri(_value, _breadcrumb) {
 	}
 }
 
+function form_to_json(_form) {
+	var ret = {};
+	var t = new FormData(_form);
+	for(var [key, value] of t.entries()) {
+		var s = key.split('['),
+			cursor = ret;
+		for(var i=0 ; i<s.length ; i++) {
+			if(s[i].substr(-1) == ']') {
+				s[i] = s[i].substr(0, s[i].length-1);
+			}
+			if(i == s.length-1) {
+				if(s[i] == '') {
+					cursor.push(value);
+				} else {
+					cursor[s[i]] = value;
+				}
+			} else {
+				if(s[i+1] == ']') {
+					if(s[i] == '') {
+						var l = cursor.push([]);
+						cursor = cursor[l-1];
+					} else {
+						if(typeof cursor[s[i]] == 'undefined') {
+							cursor[s[i]] = [];
+						}
+					}
+				} else {
+					if(s[i] == '') {
+						var l = cursor.push({});
+						cursor = cursor[l-1];
+					} else {
+						if(typeof cursor[s[i]] == 'undefined') {
+							cursor[s[i]] = {};
+						}
+					}
+				}
+				cursor = cursor[s[i]];
+			}
+		}
+	}
+	return ret;
+}
+
 function select_val(_select) {
 	return _select.options[_select.selectedIndex].value;
 }
@@ -684,6 +727,7 @@ function on_key_down(event) {
 /*************************************************************************************************/
 function sql_execute(_form) {
 	Page.current().context_detail_add({'sql_query': _form.sql_query.value});
+	Page.current().context_detail_remove(['page']);
 	Page.current().load_content();
 }
 
@@ -692,6 +736,15 @@ function sql_empty(_form) {
 }
 
 function sql_format(_form) {
+	info('TODO');
+}
+
+function search_execute(_form) {
+	Page.current().context_detail_add({'search_params': form_to_json(_form)});
+	Page.current().context_detail_remove(['page']);
+	Page.current().load_content();
+}
+function search_empty(_form) {
 	info('TODO');
 }
 

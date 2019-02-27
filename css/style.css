@@ -526,7 +526,7 @@ body, input {
 	display: flex;
 	flex-direction: column;
 }
-.form > *:not(.CodeMirror) {
+.form > *:not(.CodeMirror):not(table) {
 	display: flex;
 }
 .form > div:not(.CodeMirror) > * {
